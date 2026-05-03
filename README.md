@@ -107,17 +107,20 @@ python scripts/fetch_prices.py
 C:\Program Files\PostgreSQL\17\data\
 ```
 
-查詢實際路徑：
+查詢實際路徑（在 Windows 終端機執行）：
 
-```sql
-SHOW data_directory;
+```bat
+psql -U postgres -c "SHOW data_directory;"
 ```
 
 查詢 `taiwan_portfolio` 的內部識別碼（OID）：
 
-```sql
-SELECT oid, datname FROM pg_database WHERE datname = 'taiwan_portfolio';
+```bat
+psql -U postgres -c "SELECT oid, datname FROM pg_database WHERE datname = 'taiwan_portfolio';"
 ```
+
+> `SHOW` 與 `SELECT` 是 SQL 語法，不能直接在 Windows 終端機執行；
+> 加上 `psql -U postgres -c "..."` 才是完整的執行方式。
 
 `data\base\<OID>\` 下存放的是 PostgreSQL 自有格式的二進位檔案，**無法直接用文字編輯器讀取**，只能透過 psql 或 psycopg2 等方式存取。
 
