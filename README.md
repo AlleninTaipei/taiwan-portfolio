@@ -93,19 +93,139 @@ python scripts/add_transaction.py
 python scripts/fetch_prices.py
 ```
 
-## PostgreSQL 學習對照
+---
+
+## PostgreSQL 基礎知識
+
+### 資料庫實際存在哪裡？
+
+`taiwan_portfolio` 不是一個資料夾或檔案，而是由 **PostgreSQL 服務**（背景執行的 process）統一管理的資料集合。
+
+所有資料存放在 PostgreSQL 的 **data directory**，Windows 預設路徑：
+
+```
+C:\Program Files\PostgreSQL\17\data\
+```
+
+查詢實際路徑：
+
+```sql
+SHOW data_directory;
+```
+
+查詢 `taiwan_portfolio` 的內部識別碼（OID）：
+
+```sql
+SELECT oid, datname FROM pg_database WHERE datname = 'taiwan_portfolio';
+```
+
+`data\base\<OID>\` 下存放的是 PostgreSQL 自有格式的二進位檔案，**無法直接用文字編輯器讀取**，只能透過 psql 或 psycopg2 等方式存取。
+
+### data directory 結構
+
+```
+data/
+├── base/               # 每個資料庫一個子目錄（以 OID 命名）
+│   ├── 1/              # template1（系統用）
+│   ├── 16384/          # taiwan_portfolio（OID 示例）
+│   │   ├── 16385       # stocks 資料表的 heap 檔
+│   │   ├── 16390       # transactions 資料表
+│   │   └── ...
+├── global/             # 跨資料庫的系統目錄（pg_database 等）
+├── pg_wal/             # Write-Ahead Log（WAL），確保資料不遺失
+├── pg_hba.conf         # 連線驗證規則（允許哪些 IP / 帳號）
+├── postgresql.conf     # 主設定檔（port、記憶體、log 等）
+└── PG_VERSION          # PostgreSQL 版本號
+```
+
+### 連線字串解析
+
+本專案使用的 `DATABASE_URL`：
+
+```
+postgresql://postgres:PASSWORD@localhost:5432/taiwan_portfolio
+             ────────  ────────  ─────────  ────  ─────────────
+             使用者    密碼      主機       port  資料庫名稱
+```
+
+| 欄位 | 說明 |
+|------|------|
+| `postgres` | 安裝時預設建立的超級使用者（superuser） |
+| `localhost` | PostgreSQL 服務執行在本機 |
+| `5432` | PostgreSQL 預設監聽 port |
+| `taiwan_portfolio` | 本專案建立的資料庫 |
+
+### PostgreSQL 服務管理（Windows）
+
+```powershell
+# 查看服務狀態
+Get-Service postgresql*
+
+# 啟動 / 停止
+Start-Service postgresql-x64-17
+Stop-Service  postgresql-x64-17
+```
+
+或在「服務」管理員（services.msc）中操作 `postgresql-x64-17`。
+
+### psql 常用指令
+
+| 指令 | 說明 |
+|------|------|
+| `\l` | 列出所有資料庫 |
+| `\c taiwan_portfolio` | 切換到此資料庫 |
+| `\dt` | 列出所有資料表 |
+| `\d stocks` | 查看 stocks 資料表結構 |
+| `\dv` | 列出所有 View |
+| `\di` | 列出所有 Index |
+| `\q` | 離開 psql |
+
+### 本專案的資料表關聯
+
+```
+stocks          transactions          daily_prices
+──────────      ────────────────      ────────────────
+ticker (PK) ←── ticker (FK)           ticker (FK) ──→ stocks
+name            trade_date            price_date
+sector          trade_type            close_price
+                shares
+                price                 PK: (ticker, price_date)
+                fee
+
+                        ↓ VIEW
+                 portfolio_summary
+                 ─────────────────────
+                 holding_shares（CASE WHEN BUY/SELL）
+                 avg_cost（加權平均）
+                 current_price（子查詢取最新日期）
+                 market_value、pnl_amount、return_pct
+```
+
+### PostgreSQL 學習對照
 
 | SQL 功能 | 在本專案哪裡用到 |
 |----------|----------------|
-| Foreign Key | `transactions` → `stocks` |
-| CHECK constraint | `trade_type IN ('BUY','SELL')` |
-| CASE WHEN | 計算持股數、加權平均成本 |
-| Subquery | 取最新收盤價 |
-| NULLIF | 防止除以零 |
-| CREATE INDEX | `daily_prices` 加速查詢 |
-| CREATE VIEW | `portfolio_summary` 損益計算 |
-| HAVING | 過濾已清倉股票 |
-| INSERT ON CONFLICT | UPSERT 收盤價 |
+| Foreign Key | `transactions.ticker` → `stocks.ticker`；刪除股票若有交易紀錄會報錯（保護資料完整性） |
+| CHECK constraint | `trade_type IN ('BUY','SELL')`；資料庫層擋住非法值 |
+| CASE WHEN | `portfolio_summary` 中計算持股數（BUY 加、SELL 減）與加權平均成本 |
+| Subquery | 取每支股票最新收盤價（`SELECT MAX(price_date)`） |
+| NULLIF | `NULLIF(SUM(shares), 0)` 防止除以零導致例外 |
+| CREATE INDEX | `daily_prices(ticker DESC, price_date DESC)` 加速最新價查詢 |
+| CREATE VIEW | `portfolio_summary` 把複雜損益計算封裝成虛擬資料表 |
+| HAVING | 過濾 `holding_shares = 0`（已清倉不顯示） |
+| INSERT ON CONFLICT | `upsert_prices()` 中，同一天重複抓到資料時更新而不是報錯 |
+| Transaction (commit) | `db_ops.py` 每個寫入操作結束後呼叫 `conn.commit()` |
+
+### 為什麼用 View 而不是直接 SELECT？
+
+`portfolio_summary` 是 **Virtual View**（非實體化），每次查詢時即時計算：
+
+- 優點：資料永遠是最新的（基於 transactions + daily_prices 的即時計算）
+- 代價：複雜查詢每次都重新執行；資料量大時可考慮 `MATERIALIZED VIEW` + 定期 `REFRESH`
+
+本專案資料量小（個人持股），Virtual View 完全夠用。
+
+---
 
 ## .gitignore 建議
 
