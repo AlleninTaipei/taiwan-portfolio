@@ -160,16 +160,25 @@ postgresql://postgres:PASSWORD@localhost:5432/taiwan_portfolio
 
 ### PostgreSQL 服務管理（Windows）
 
-```powershell
-# 查看服務狀態
-Get-Service postgresql*
+**PowerShell**（需以系統管理員身分執行）：
 
-# 啟動 / 停止
-Start-Service postgresql-x64-17
-Stop-Service  postgresql-x64-17
+```powershell
+Get-Service postgresql*          # 查看服務狀態
+Start-Service postgresql-x64-17  # 啟動
+Stop-Service  postgresql-x64-17  # 停止
 ```
 
-或在「服務」管理員（services.msc）中操作 `postgresql-x64-17`。
+**cmd.exe**（同樣需以系統管理員身分執行）：
+
+```bat
+sc query postgresql-x64-17       # 查看服務狀態
+net start postgresql-x64-17      # 啟動
+net stop  postgresql-x64-17      # 停止
+```
+
+> `Get-Service` 等指令是 PowerShell 專屬 cmdlet，無法在 cmd.exe 執行；
+> `net start / net stop` 則兩者通用。
+> 也可在「服務」管理員（services.msc）中以 GUI 操作 `postgresql-x64-17`。
 
 ### psql 常用指令
 
