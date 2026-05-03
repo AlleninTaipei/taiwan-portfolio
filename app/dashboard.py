@@ -135,7 +135,7 @@ elif page == "個股明細":
         st.stop()
 
     if df.empty:
-        st.warning("目前沒有持倉資料。")
+        st.warning("目前沒有庫存。")
         st.stop()
 
     display = df[[
@@ -212,42 +212,74 @@ elif page == "交易管理":
         except Exception:
             stock_opts = []
 
-        with st.form("form_add_tx"):
-            st.subheader("新增交易")
+        if not stock_opts:
+            st.warning("尚無股票資料，請先至「股票管理」新增股票。")
+        else:
+            col1, col2 = st.columns(2)
+            selected  = col1.selectbox("股票", options=stock_opts, key="add_tx_stock")
+            tx_ticker = selected.split()[0]
+            tx_date   = col2.date_input("交易日期", value=date.today(), key="add_tx_date")
 
-            if not stock_opts:
-                st.warning("尚無股票資料，請先至「股票管理」新增股票。")
-                st.form_submit_button("新增", disabled=True)
+            col3, col4 = st.columns(2)
+            tx_type   = col3.radio("類型", ["BUY", "SELL"], horizontal=True, key="add_tx_type")
+            tx_shares = col4.number_input("股數", min_value=1, step=1, value=1000,
+                                           key="add_tx_shares")
+
+            st.divider()
+
+            # ── 費用計算區 ───────────────────────────────────────
+            col5, col6, col7 = st.columns(3)
+
+            tx_price  = col5.number_input(
+                "成交價（元）", min_value=0.01, step=0.01, value=100.0,
+                format="%.2f", key="add_tx_price",
+            )
+            fee_pct = col6.number_input(
+                "手續費（%）",
+                min_value=0.0, max_value=0.1425, value=0.1425,
+                step=0.0001, format="%.4f", key="add_tx_fee_pct",
+                help="買賣皆收，上限 0.1425%",
+            )
+            if tx_type == "SELL":
+                tax_pct = col7.number_input(
+                    "證交稅（%）",
+                    min_value=0.0, max_value=0.3, value=0.3,
+                    step=0.001, format="%.3f", key="add_tx_tax_pct",
+                    help="賣出時課徵，上限 0.3%",
+                )
             else:
-                col1, col2 = st.columns(2)
-                selected  = col1.selectbox("股票", options=stock_opts)
-                tx_ticker = selected.split()[0]
-                tx_date   = col2.date_input("交易日期", value=date.today())
+                col7.text_input("證交稅（%）", value="— 僅賣出適用",
+                                 disabled=True, key="add_tx_tax_disabled")
+                tax_pct = 0.0
 
-                col3, col4 = st.columns(2)
-                tx_type   = col3.radio("類型", ["BUY", "SELL"], horizontal=True)
-                tx_shares = col4.number_input("股數", min_value=1, step=1, value=1000)
+            fee_amt  = int(tx_shares) * tx_price * fee_pct  / 100
+            tax_amt  = int(tx_shares) * tx_price * tax_pct  / 100
+            total_fee = fee_amt + tax_amt
 
-                col5, col6 = st.columns(2)
-                tx_price = col5.number_input("成交價（元）", min_value=0.01, step=0.01,
-                                              value=100.0, format="%.2f")
-                tx_fee   = col6.number_input("手續費（元）", min_value=0.0, step=1.0,
-                                              value=0.0, format="%.0f")
+            _, cost_col = st.columns([2, 1])
+            cost_col.metric(
+                "交易成本（元）",
+                f"NT$ {total_fee:,.0f}",
+                help=f"手續費 NT${fee_amt:,.0f}　＋　證交稅 NT${tax_amt:,.0f}",
+            )
 
-                if st.form_submit_button("新增", type="primary"):
-                    try:
-                        new_id = insert_transaction(
-                            tx_ticker, tx_date, tx_type,
-                            int(tx_shares), tx_price, tx_fee,
-                        )
-                        st.success(
-                            f"✓ 已新增交易 id={new_id}（"
-                            f"{tx_date} {tx_type} {tx_ticker} "
-                            f"{int(tx_shares)}股 @ {tx_price:.2f}元）"
-                        )
-                        _clear_cache()
-                    except Exception as e:
-                        st.error(f"新增失敗：{e}")
+            st.divider()
+
+            if st.button("新增交易", type="primary", key="btn_add_tx"):
+                try:
+                    new_id = insert_transaction(
+                        tx_ticker, tx_date, tx_type,
+                        int(tx_shares), tx_price, round(total_fee, 0),
+                    )
+                    st.success(
+                        f"✓ 已新增交易 id={new_id}（"
+                        f"{tx_date} {tx_type} {tx_ticker} "
+                        f"{int(tx_shares)}股 @ {tx_price:.2f}元，"
+                        f"交易成本 NT${total_fee:,.0f}元）"
+                    )
+                    _clear_cache()
+                except Exception as e:
+                    st.error(f"新增失敗：{e}")
 
     # ── 修改 ──
     with tab_edit:
