@@ -14,7 +14,7 @@
 
 | 層級 | 工具 |
 |------|------|
-| 資料庫 | PostgreSQL 17 |
+| 資料庫 | PostgreSQL 14 |
 | Python | psycopg2-binary、pandas |
 | 股價來源 | yfinance（支援 .TW / .TWO） |
 | Dashboard | Streamlit + Plotly |
@@ -47,11 +47,54 @@ CLI scripts        →  db_ops.py
 
 ## 快速開始
 
-### 1. 安裝 PostgreSQL 17
+### macOS（Homebrew）
 
-至 [postgresql.org](https://www.postgresql.org/download/windows/) 下載 Windows installer。
+#### 1. 安裝 PostgreSQL 14
 
-### 2. 建立資料庫
+```bash
+brew install postgresql@14
+brew services start postgresql@14   # 啟動並設定開機自動啟動
+```
+
+#### 2. 建立資料庫
+
+```bash
+createdb taiwan_portfolio
+psql -d taiwan_portfolio -f db/schema.sql
+psql -d taiwan_portfolio -f db/sample_data.sql   # 選用
+```
+
+#### 3. 設定環境變數
+
+建立 `.env`：
+
+```
+DATABASE_URL=postgresql://你的使用者名稱@localhost:5432/taiwan_portfolio
+```
+
+> 查詢使用者名稱：`whoami`
+
+#### 4. 安裝 Python 套件
+
+```bash
+pip3 install -r requirements.txt
+```
+
+#### 5. 啟動 Dashboard
+
+```bash
+python3 -m streamlit run app/dashboard.py
+```
+
+---
+
+### Windows
+
+#### 1. 安裝 PostgreSQL 14
+
+至 [postgresql.org](https://www.postgresql.org/download/windows/) 下載 installer。
+
+#### 2. 建立資料庫
 
 ```bash
 createdb -U postgres taiwan_portfolio
@@ -59,25 +102,27 @@ psql -U postgres -d taiwan_portfolio -f db/schema.sql
 psql -U postgres -d taiwan_portfolio -f db/sample_data.sql   # 選用
 ```
 
-### 3. 設定環境變數
+#### 3. 設定環境變數
 
-複製 `.env.example` 為 `.env` 並填入密碼：
+建立 `.env`：
 
 ```
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/taiwan_portfolio
 ```
 
-### 4. 安裝 Python 套件
+#### 4. 安裝 Python 套件
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 5. 啟動 Dashboard
+#### 5. 啟動 Dashboard
 
 ```bash
-streamlit run app/dashboard.py
+python -m streamlit run app/dashboard.py
 ```
+
+---
 
 瀏覽器開啟 http://localhost:8501
 
@@ -101,22 +146,24 @@ python scripts/fetch_prices.py
 
 `taiwan_portfolio` 不是一個資料夾或檔案，而是由 **PostgreSQL 服務**（背景執行的 process）統一管理的資料集合。
 
-所有資料存放在 PostgreSQL 的 **data directory**，Windows 預設路徑：
+所有資料存放在 PostgreSQL 的 **data directory**，預設路徑：
 
-```
-C:\Program Files\PostgreSQL\17\data\
-```
+| 平台 | 路徑 |
+|------|------|
+| macOS (Homebrew Intel) | `/usr/local/var/postgresql@14/` |
+| macOS (Homebrew Apple Silicon) | `/opt/homebrew/var/postgresql@14/` |
+| Windows | `C:\Program Files\PostgreSQL\14\data\` |
 
-查詢實際路徑（在 Windows 終端機執行）：
+查詢實際路徑：
 
-```bat
-psql -U postgres -c "SHOW data_directory;"
+```bash
+psql -d postgres -c "SHOW data_directory;"
 ```
 
 查詢 `taiwan_portfolio` 的內部識別碼（OID）：
 
-```bat
-psql -U postgres -c "SELECT oid, datname FROM pg_database WHERE datname = 'taiwan_portfolio';"
+```bash
+psql -d postgres -c "SELECT oid, datname FROM pg_database WHERE datname = 'taiwan_portfolio';"
 ```
 
 > `SHOW` 與 `SELECT` 是 SQL 語法，不能直接在 Windows 終端機執行；
@@ -145,6 +192,12 @@ data/
 
 本專案使用的 `DATABASE_URL`：
 
+**macOS（Homebrew，無密碼）**：
+```
+postgresql://你的使用者名稱@localhost:5432/taiwan_portfolio
+```
+
+**Windows**：
 ```
 postgresql://postgres:PASSWORD@localhost:5432/taiwan_portfolio
              ────────  ────────  ─────────  ────  ─────────────
@@ -153,32 +206,40 @@ postgresql://postgres:PASSWORD@localhost:5432/taiwan_portfolio
 
 | 欄位 | 說明 |
 |------|------|
-| `postgres` | 安裝時預設建立的超級使用者（superuser） |
+| 使用者名稱 | macOS：`whoami` 的輸出；Windows：安裝時預設的 `postgres` |
 | `localhost` | PostgreSQL 服務執行在本機 |
 | `5432` | PostgreSQL 預設監聽 port |
 | `taiwan_portfolio` | 本專案建立的資料庫 |
 
-### PostgreSQL 服務管理（Windows）
+### PostgreSQL 服務管理
 
-**PowerShell**（需以系統管理員身分執行）：
+**macOS（Homebrew）**：
+
+```bash
+brew services start postgresql@14   # 啟動（並設定開機自動啟動）
+brew services stop postgresql@14    # 停止
+brew services list                  # 查看狀態
+```
+
+**Windows — PowerShell**（需以系統管理員身分執行）：
 
 ```powershell
 Get-Service postgresql*          # 查看服務狀態
-Start-Service postgresql-x64-17  # 啟動
-Stop-Service  postgresql-x64-17  # 停止
+Start-Service postgresql-x64-14  # 啟動
+Stop-Service  postgresql-x64-14  # 停止
 ```
 
-**cmd.exe**（同樣需以系統管理員身分執行）：
+**Windows — cmd.exe**（同樣需以系統管理員身分執行）：
 
 ```bat
-sc query postgresql-x64-17       # 查看服務狀態
-net start postgresql-x64-17      # 啟動
-net stop  postgresql-x64-17      # 停止
+sc query postgresql-x64-14       # 查看服務狀態
+net start postgresql-x64-14      # 啟動
+net stop  postgresql-x64-14      # 停止
 ```
 
 > `Get-Service` 等指令是 PowerShell 專屬 cmdlet，無法在 cmd.exe 執行；
 > `net start / net stop` 則兩者通用。
-> 也可在「服務」管理員（services.msc）中以 GUI 操作 `postgresql-x64-17`。
+> 也可在「服務」管理員（services.msc）中以 GUI 操作 `postgresql-x64-14`。
 
 ### psql 常用指令
 
