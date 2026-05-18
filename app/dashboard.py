@@ -159,14 +159,14 @@ elif page == "個股明細":
 
     styled = (
         display.style
-        .applymap(color_return, subset=["報酬率%", "損益(元)"])
+        .map(color_return, subset=["報酬率%", "損益(元)"])
         .format({
             "均成本":   "{:,.2f}",
             "現價":     "{:,.2f}",
             "市值":     "{:,.0f}",
             "損益(元)": "{:,.0f}",
             "報酬率%":  "{:.2f}%",
-        })
+        }, na_rep="—")
     )
 
     st.dataframe(styled, use_container_width=True, hide_index=True)
