@@ -25,11 +25,14 @@
 taiwan-portfolio/
 ├── db/
 │   ├── schema.sql          # 資料表、Index、View 定義
-│   └── sample_data.sql     # 測試用範例資料
+│   ├── sample_data.sql     # 測試用範例資料
+│   └── stocks_seed.csv     # 上市上柜普通股清單種子檔（代號、名稱、產業分類）
 ├── scripts/
 │   ├── db_ops.py           # 共用 CRUD 操作模組（Dashboard 與 CLI 共用）
 │   ├── fetch_prices.py     # 抓取台股收盤價（自動嘗試 .TW / .TWO）
-│   └── add_transaction.py  # CLI 新增買賣交易紀錄
+│   ├── add_transaction.py  # CLI 新增買賣交易紀錄
+│   ├── fetch_tw_stocks.py  # 從證交所 ISIN 頁面重新產生 stocks_seed.csv
+│   └── import_stocks.py    # 將 stocks_seed.csv 批次 upsert 進 stocks 資料表
 ├── app/
 │   └── dashboard.py        # Streamlit Dashboard（含完整 CRUD）
 ├── requirements.txt
@@ -137,6 +140,28 @@ python scripts/add_transaction.py
 # 單獨抓取收盤價（等同 Dashboard「更新股價」按鈕）
 python scripts/fetch_prices.py
 ```
+
+## 股票主檔批次匯入（選用）
+
+`db/stocks_seed.csv` 是上市、上柜普通股的完整清單（代號、名稱、產業分類），可一次性匯入 `stocks` 資料表，不必逐筆透過 Dashboard「股票管理」新增。
+
+```bash
+# 將 stocks_seed.csv 批次 upsert 進 stocks 資料表
+# 已存在的 ticker 會更新名稱與產業分類，不存在的則新增
+python scripts/import_stocks.py
+```
+
+`stocks_seed.csv` 會隨時間變得過時（公司改名、產業分類調整、新上市股票），需要時可重新抓取最新清單：
+
+```bash
+pip install requests beautifulsoup4   # 已包含在 requirements.txt
+python scripts/fetch_tw_stocks.py     # 重新產生 db/stocks_seed.csv
+python scripts/import_stocks.py       # 再次 upsert 進資料表
+```
+
+資料來源為證交所 ISIN 查詢頁面（[上市](https://isin.twse.com.tw/isin/C_public.jsp?strMode=2)、[上柜](https://isin.twse.com.tw/isin/C_public.jsp?strMode=4)），只擷取「股票」區段，不含 ETF、受益憑證、認購權證、存託憑證等其他證券類別，每次重新抓取都需要網路連線。
+
+`stocks_seed.csv` 屬於初始化用的種子資料，日常新增、修改個別股票仍建議透過 Dashboard「股票管理」操作。
 
 ---
 

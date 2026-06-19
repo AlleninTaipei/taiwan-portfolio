@@ -4,3 +4,5 @@ pandas
 streamlit
 plotly
 python-dotenv
+requests
+beautifulsoup4
