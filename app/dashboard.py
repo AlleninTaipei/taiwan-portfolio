@@ -388,7 +388,9 @@ elif page == "股票管理":
         "建議流程：**股票管理（新增）→ 交易管理（新增）→ 更新股價**"
     )
 
-    tab_view, tab_add, tab_edit, tab_del = st.tabs(["📋 查看", "➕ 新增", "✏️ 修改", "🗑️ 刪除"])
+    tab_view, tab_add, tab_edit, tab_del, tab_sync = st.tabs(
+        ["📋 查看", "➕ 新增", "✏️ 修改", "🗑️ 刪除", "🔄 同步"]
+    )
 
     # ── 查看 ──
     with tab_view:
@@ -504,6 +506,56 @@ elif page == "股票管理":
                         st.error(f"刪除失敗（可能有相關交易資料）：{e}")
         except Exception as e:
             st.error(f"載入失敗：{e}")
+
+    # ── 同步 ──
+    with tab_sync:
+        st.subheader("從證交所同步股票清單")
+        st.info(
+            "依序執行 `scripts/fetch_tw_stocks.py` 與 `scripts/import_stocks.py`，"
+            "從證交所 ISIN 頁面重新抓取上市、上柜的股票與 ETF 清單，"
+            "並批次 upsert 進 stocks 資料表。已存在的 ticker 會更新名稱、類別與產業分類，不存在的則新增。"
+        )
+
+        if st.button("🔄 開始同步", type="primary", key="btn_sync_stocks"):
+            fetch_script  = _ROOT / "scripts" / "fetch_tw_stocks.py"
+            import_script = _ROOT / "scripts" / "import_stocks.py"
+
+            with st.spinner("正在從證交所抓取清單，請稍候…"):
+                fetch_result = subprocess.run(
+                    [sys.executable, str(fetch_script)],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    cwd=str(_ROOT),
+                )
+
+            log_parts = [fetch_result.stdout, fetch_result.stderr]
+            import_result = None
+
+            if fetch_result.returncode != 0:
+                st.error(f"抓取失敗（exit code {fetch_result.returncode}）")
+            else:
+                with st.spinner("正在批次匯入資料庫，請稍候…"):
+                    import_result = subprocess.run(
+                        [sys.executable, str(import_script)],
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        cwd=str(_ROOT),
+                    )
+                log_parts += [import_result.stdout, import_result.stderr]
+
+                if import_result.returncode == 0:
+                    st.success("✓ 同步完成！")
+                    _clear_cache()
+                else:
+                    st.error(f"匯入失敗（exit code {import_result.returncode}）")
+
+            log_text = "\n".join(part for part in log_parts if part)
+            if log_text.strip():
+                st.text_area("執行輸出", log_text.strip(), height=300)
 
 
 # ── 頁面 5：更新股價 ─────────────────────────────────────────────
