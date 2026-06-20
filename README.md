@@ -26,7 +26,7 @@ taiwan-portfolio/
 ├── db/
 │   ├── schema.sql          # 資料表、Index、View 定義
 │   ├── sample_data.sql     # 測試用範例資料
-│   └── stocks_seed.csv     # 上市上柜普通股清單種子檔（代號、名稱、產業分類）
+│   └── stocks_seed.csv     # 上市上柜普通股與 ETF 清單種子檔（代號、名稱、類別、產業分類）
 ├── scripts/
 │   ├── db_ops.py           # 共用 CRUD 操作模組（Dashboard 與 CLI 共用）
 │   ├── fetch_prices.py     # 抓取台股收盤價（自動嘗試 .TW / .TWO）
@@ -143,11 +143,11 @@ python scripts/fetch_prices.py
 
 ## 股票主檔批次匯入（選用）
 
-`db/stocks_seed.csv` 是上市、上柜普通股的完整清單（代號、名稱、產業分類），可一次性匯入 `stocks` 資料表，不必逐筆透過 Dashboard「股票管理」新增。
+`db/stocks_seed.csv` 是上市、上柜普通股與 ETF 的完整清單（代號、名稱、類別、產業分類），可一次性匯入 `stocks` 資料表，不必逐筆透過 Dashboard「股票管理」新增。
 
 ```bash
 # 將 stocks_seed.csv 批次 upsert 進 stocks 資料表
-# 已存在的 ticker 會更新名稱與產業分類，不存在的則新增
+# 已存在的 ticker 會更新名稱、類別與產業分類，不存在的則新增
 python scripts/import_stocks.py
 ```
 
@@ -159,7 +159,7 @@ python scripts/fetch_tw_stocks.py     # 重新產生 db/stocks_seed.csv
 python scripts/import_stocks.py       # 再次 upsert 進資料表
 ```
 
-資料來源為證交所 ISIN 查詢頁面（[上市](https://isin.twse.com.tw/isin/C_public.jsp?strMode=2)、[上柜](https://isin.twse.com.tw/isin/C_public.jsp?strMode=4)），只擷取「股票」區段，不含 ETF、受益憑證、認購權證、存託憑證等其他證券類別，每次重新抓取都需要網路連線。
+資料來源為證交所 ISIN 查詢頁面（[上市](https://isin.twse.com.tw/isin/C_public.jsp?strMode=2)、[上柜](https://isin.twse.com.tw/isin/C_public.jsp?strMode=4)），擷取「股票」與「ETF」區段，不含受益憑證、認購權證、存託憑證等其他證券類別，每次重新抓取都需要網路連線。ETF 沒有產業分類，該欄會留空。
 
 `stocks_seed.csv` 屬於初始化用的種子資料，日常新增、修改個別股票仍建議透過 Dashboard「股票管理」操作。
 
@@ -286,7 +286,7 @@ stocks          transactions          daily_prices
 ticker (PK) ←── ticker (FK)           ticker (FK) ──→ stocks
 name            trade_date            price_date
 sector          trade_type            close_price
-                shares
+category        shares
                 price                 PK: (ticker, price_date)
                 fee
 

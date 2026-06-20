@@ -2,10 +2,10 @@
 -- 測試用範例資料（台積電、0050、聯發科）
 -- ============================================================
 
-INSERT INTO stocks (ticker, name, sector) VALUES
-    ('2330', '台積電',   '半導體'),
-    ('0050', '元大台灣50', 'ETF'),
-    ('2454', '聯發科',   '半導體')
+INSERT INTO stocks (ticker, name, sector, category) VALUES
+    ('2330', '台積電',   '半導體', '股票'),
+    ('0050', '元大台灣50', NULL,    'ETF'),
+    ('2454', '聯發科',   '半導體', '股票')
 ON CONFLICT (ticker) DO NOTHING;
 
 INSERT INTO transactions (ticker, trade_date, trade_type, shares, price, fee) VALUES

@@ -398,7 +398,7 @@ elif page == "股票管理":
                 st.info("尚無股票資料。請至「➕ 新增」標籤新增股票。")
             else:
                 show = stocks_df.copy()
-                show.columns = ["代號", "名稱", "產業"]
+                show.columns = ["代號", "名稱", "產業", "類別"]
                 st.dataframe(show, use_container_width=True, hide_index=True)
                 st.caption(f"共 {len(stocks_df)} 支股票")
         except Exception as e:
@@ -408,10 +408,11 @@ elif page == "股票管理":
     with tab_add:
         with st.form("form_add_stock"):
             st.subheader("新增股票")
-            col1, col2, col3 = st.columns(3)
-            s_ticker = col1.text_input("股票代號（例如：2330）")
-            s_name   = col2.text_input("股票名稱（例如：台積電）")
-            s_sector = col3.text_input("產業分類（可留空）")
+            col1, col2, col3, col4 = st.columns(4)
+            s_ticker   = col1.text_input("股票代號（例如：2330）")
+            s_name     = col2.text_input("股票名稱（例如：台積電）")
+            s_sector   = col3.text_input("產業分類（可留空）")
+            s_category = col4.selectbox("類別", ["股票", "ETF"])
 
             if st.form_submit_button("新增", type="primary"):
                 s_ticker = s_ticker.strip().upper()
@@ -422,7 +423,7 @@ elif page == "股票管理":
                     st.error(f"股票 {s_ticker} 已存在")
                 else:
                     try:
-                        insert_stock(s_ticker, s_name, s_sector or None)
+                        insert_stock(s_ticker, s_name, s_sector or None, s_category)
                         st.success(f"✓ 已新增 {s_ticker}  {s_name}")
                         _clear_cache()
                     except Exception as e:
@@ -449,15 +450,19 @@ elif page == "股票管理":
                 row = stocks_df[stocks_df["ticker"] == edit_ticker].iloc[0]
 
                 with st.form("form_edit_stock"):
-                    e_name   = st.text_input("股票名稱", value=row["name"])
-                    e_sector = st.text_input("產業分類", value=row["sector"] or "")
+                    e_name     = st.text_input("股票名稱", value=row["name"])
+                    e_sector   = st.text_input("產業分類", value=row["sector"] or "")
+                    e_category = st.selectbox(
+                        "類別", ["股票", "ETF"],
+                        index=["股票", "ETF"].index(row["category"]),
+                    )
 
                     if st.form_submit_button("儲存修改", type="primary"):
                         if not e_name.strip():
                             st.error("股票名稱不可為空")
                         else:
                             try:
-                                update_stock(edit_ticker, e_name, e_sector or None)
+                                update_stock(edit_ticker, e_name, e_sector or None, e_category)
                                 st.success(f"✓ {edit_ticker} 已更新")
                                 _clear_cache()
                             except Exception as e:

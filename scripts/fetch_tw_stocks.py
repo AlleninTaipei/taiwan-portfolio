@@ -1,10 +1,10 @@
 """
-fetch_tw_stocks.py — 從證交所 ISIN 查詢頁面擷取上市/上柜普通股清單，更新 db/stocks_seed.csv
+fetch_tw_stocks.py — 從證交所 ISIN 查詢頁面擷取上市/上柜普通股與 ETF 清單，更新 db/stocks_seed.csv
 
 資料來源：
     上市 https://isin.twse.com.tw/isin/C_public.jsp?strMode=2
     上柜 https://isin.twse.com.tw/isin/C_public.jsp?strMode=4
-僅擷取「股票」區段，不含 ETF、受益憑證、認購權證、存託憑證等其他證券類別。
+擷取「股票」與「ETF」區段，不含受益憑證、認購權證、存託憑證等其他證券類別。
 
 執行方式：
     python scripts/fetch_tw_stocks.py
@@ -30,6 +30,8 @@ OUTPUT_FILE = Path(__file__).resolve().parent.parent / "db" / "stocks_seed.csv"
 
 CODE_NAME_RE = re.compile(r"^(\S+)\s+(.+)$")
 
+SECTIONS = {"股票", "ETF"}
+
 
 def fetch_stock_rows(market: str, url: str):
     resp = requests.get(url, timeout=30)
@@ -44,7 +46,7 @@ def fetch_stock_rows(market: str, url: str):
         if len(cells) == 1:
             section = cells[0].get_text(strip=True)
             continue
-        if len(cells) < 5 or section != "股票":
+        if len(cells) < 5 or section not in SECTIONS:
             continue
 
         code_name = cells[0].get_text(strip=True)
@@ -54,9 +56,9 @@ def fetch_stock_rows(market: str, url: str):
         if not m:
             continue
         code, name = m.group(1), m.group(2)
-        rows.append((code, name, industry))
+        rows.append((code, name, section, industry))
 
-    print(f"{market}: 取得 {len(rows)} 筆普通股資料", file=sys.stderr)
+    print(f"{market}: 取得 {len(rows)} 筆資料", file=sys.stderr)
     return rows
 
 
@@ -67,7 +69,7 @@ def main():
 
     with open(OUTPUT_FILE, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
-        writer.writerow(["股票代號", "股票名稱", "產業分類"])
+        writer.writerow(["股票代號", "股票名稱", "類別", "產業分類"])
         writer.writerows(all_rows)
 
     print(f"完成，共 {len(all_rows)} 筆，已輸出至 {OUTPUT_FILE}", file=sys.stderr)

@@ -29,7 +29,7 @@ def _conn():
 
 def list_stocks() -> pd.DataFrame:
     with _conn() as conn:
-        return pd.read_sql("SELECT ticker, name, sector FROM stocks ORDER BY ticker", conn)
+        return pd.read_sql("SELECT ticker, name, sector, category FROM stocks ORDER BY ticker", conn)
 
 
 def stock_exists(ticker: str) -> bool:
@@ -39,22 +39,22 @@ def stock_exists(ticker: str) -> bool:
             return cur.fetchone() is not None
 
 
-def insert_stock(ticker: str, name: str, sector: str | None = None) -> None:
+def insert_stock(ticker: str, name: str, sector: str | None = None, category: str = "股票") -> None:
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO stocks (ticker, name, sector) VALUES (%s, %s, %s)",
-                (ticker.upper(), name.strip(), sector.strip() if sector else None),
+                "INSERT INTO stocks (ticker, name, sector, category) VALUES (%s, %s, %s, %s)",
+                (ticker.upper(), name.strip(), sector.strip() if sector else None, category),
             )
         conn.commit()
 
 
-def update_stock(ticker: str, name: str, sector: str | None = None) -> None:
+def update_stock(ticker: str, name: str, sector: str | None = None, category: str = "股票") -> None:
     with _conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE stocks SET name = %s, sector = %s WHERE ticker = %s",
-                (name.strip(), sector.strip() if sector else None, ticker.upper()),
+                "UPDATE stocks SET name = %s, sector = %s, category = %s WHERE ticker = %s",
+                (name.strip(), sector.strip() if sector else None, category, ticker.upper()),
             )
         conn.commit()
 

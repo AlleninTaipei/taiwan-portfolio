@@ -4,10 +4,15 @@
 
 -- 股票基本資料
 CREATE TABLE IF NOT EXISTS stocks (
-    ticker  VARCHAR(10) PRIMARY KEY,   -- '2330', '0050'
-    name    VARCHAR(50) NOT NULL,
-    sector  VARCHAR(50)
+    ticker    VARCHAR(10) PRIMARY KEY,   -- '2330', '0050'
+    name      VARCHAR(50) NOT NULL,
+    sector    VARCHAR(50),
+    category  VARCHAR(10) NOT NULL DEFAULT '股票' CHECK (category IN ('股票', 'ETF'))
 );
+
+-- 相容既有資料庫（CREATE TABLE IF NOT EXISTS 對已存在的表不會補欄位）
+ALTER TABLE stocks ADD COLUMN IF NOT EXISTS category VARCHAR(10) NOT NULL DEFAULT '股票'
+    CHECK (category IN ('股票', 'ETF'));
 
 -- 交易紀錄（買/賣）
 CREATE TABLE IF NOT EXISTS transactions (

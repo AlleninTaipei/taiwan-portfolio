@@ -1,10 +1,11 @@
 """
 import_stocks.py — 將股票清單 CSV 批次 upsert 進 stocks 資料表
 
-CSV 格式（utf-8-sig，標頭為 股票代號,股票名稱,產業分類）：
+CSV 格式（utf-8-sig，標頭為 股票代號,股票名稱,類別,產業分類）：
     預設讀取 db/stocks_seed.csv，可由 fetch_tw_stocks.py 重新產生或手動維護。
-    已存在的 ticker 會更新名稱與產業分類，不存在的則新增；
+    已存在的 ticker 會更新名稱、類別與產業分類，不存在的則新增；
     缺少代號或名稱的資料行會被跳過並列出行號，不會中止整批匯入。
+    舊版三欄 CSV（沒有「類別」欄）仍可執行，類別會預設為「股票」。
 
 執行方式：
     python scripts/import_stocks.py [csv 路徑，預設 db/stocks_seed.csv]
@@ -34,6 +35,7 @@ def main():
             ticker = (row.get("股票代號") or "").strip()
             name   = (row.get("股票名稱") or "").strip()
             sector = (row.get("產業分類") or "").strip() or None
+            category = (row.get("類別") or "股票").strip() or "股票"
 
             if not ticker or not name:
                 print(f"  第 {line_no} 行缺少股票代號或名稱，跳過", file=sys.stderr)
@@ -41,10 +43,10 @@ def main():
                 continue
 
             if stock_exists(ticker):
-                update_stock(ticker, name, sector)
+                update_stock(ticker, name, sector, category)
                 updated += 1
             else:
-                insert_stock(ticker, name, sector)
+                insert_stock(ticker, name, sector, category)
                 inserted += 1
 
     print(f"完成：新增 {inserted} 筆，更新 {updated} 筆，跳過 {skipped} 筆")
