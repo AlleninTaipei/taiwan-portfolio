@@ -14,7 +14,7 @@
 
 | 層級 | 工具 |
 |------|------|
-| 資料庫 | PostgreSQL 14 |
+| 資料庫 | PostgreSQL 17 |
 | Python | psycopg2-binary、pandas |
 | 股價來源 | yfinance（支援 .TW / .TWO） |
 | Dashboard | Streamlit + Plotly |
@@ -52,11 +52,11 @@ CLI scripts        →  db_ops.py
 
 ### macOS（Homebrew）
 
-#### 1. 安裝 PostgreSQL 14
+#### 1. 安裝 PostgreSQL 17
 
 ```bash
-brew install postgresql@14
-brew services start postgresql@14   # 啟動並設定開機自動啟動
+brew install postgresql@17
+brew services start postgresql@17   # 啟動並設定開機自動啟動
 ```
 
 #### 2. 建立資料庫
@@ -93,15 +93,21 @@ python3 -m streamlit run app/dashboard.py
 
 ### Windows
 
-#### 1. 安裝 PostgreSQL 14
+#### 1. 安裝 PostgreSQL 17
 
-至 [postgresql.org](https://www.postgresql.org/download/windows/) 下載 installer。
+至 [postgresql.org](https://www.postgresql.org/download/windows/) 下載 installer。安裝完成後的服務名稱會依版本而異(例如 `postgresql-x64-17`),可用 `Get-Service postgresql*` 確認實際名稱.
 
 #### 2. 建立資料庫
 
 ```bash
 createdb -U postgres taiwan_portfolio
+```
+
+```bash
 psql -U postgres -d taiwan_portfolio -f db/schema.sql
+```
+
+```bash
 psql -U postgres -d taiwan_portfolio -f db/sample_data.sql   # 選用
 ```
 
@@ -121,12 +127,29 @@ pip install -r requirements.txt
 
 #### 5. 啟動 Dashboard
 
-每次啟動前先確認 PostgreSQL 服務正在執行(詳見「PostgreSQL 服務管理」一節):
+每次啟動前先確認 PostgreSQL 服務正在執行(詳見「PostgreSQL 服務管理」一節).
+
+PowerShell:
 
 ```powershell
 Get-Service postgresql*          # 查看狀態
-Start-Service postgresql-x64-14  # 沒在跑就啟動
 ```
+
+```powershell
+Start-Service postgresql-x64-17  # 沒在跑就啟動
+```
+
+cmd.exe:
+
+```bat
+sc query postgresql-x64-17       # 查看狀態
+```
+
+```bat
+net start postgresql-x64-17      # 沒在跑就啟動
+```
+
+> `Get-Service` / `Start-Service` 是 PowerShell 專屬指令,在 cmd.exe 執行會出現「不是內部或外部命令」;cmd.exe 請改用 `sc query` / `net start`.
 
 確認服務正常後,於專案根目錄執行:
 
@@ -140,7 +163,7 @@ python -m streamlit run app/dashboard.py
 
 ---
 
-瀏覽器開啟 http://localhost:8501
+瀏覽器開啟 <http://localhost:8501>
 
 在 Dashboard 即可完成所有操作：新增股票、新增交易、更新股價。
 
@@ -188,9 +211,9 @@ python scripts/import_stocks.py       # 再次 upsert 進資料表
 
 | 平台 | 路徑 |
 |------|------|
-| macOS (Homebrew Intel) | `/usr/local/var/postgresql@14/` |
-| macOS (Homebrew Apple Silicon) | `/opt/homebrew/var/postgresql@14/` |
-| Windows | `C:\Program Files\PostgreSQL\14\data\` |
+| macOS (Homebrew Intel) | `/usr/local/var/postgresql@17/` |
+| macOS (Homebrew Apple Silicon) | `/opt/homebrew/var/postgresql@17/` |
+| Windows | `C:\Program Files\PostgreSQL\17\data\` |
 
 查詢實際路徑：
 
@@ -231,11 +254,13 @@ data/
 本專案使用的 `DATABASE_URL`：
 
 **macOS（Homebrew，無密碼）**：
+
 ```
 postgresql://你的使用者名稱@localhost:5432/taiwan_portfolio
 ```
 
 **Windows**：
+
 ```
 postgresql://postgres:PASSWORD@localhost:5432/taiwan_portfolio
              ────────  ────────  ─────────  ────  ─────────────
@@ -254,30 +279,32 @@ postgresql://postgres:PASSWORD@localhost:5432/taiwan_portfolio
 **macOS（Homebrew）**：
 
 ```bash
-brew services start postgresql@14   # 啟動（並設定開機自動啟動）
-brew services stop postgresql@14    # 停止
+brew services start postgresql@17   # 啟動（並設定開機自動啟動）
+brew services stop postgresql@17    # 停止
 brew services list                  # 查看狀態
 ```
 
 **Windows — PowerShell**（需以系統管理員身分執行）：
 
 ```powershell
-Get-Service postgresql*          # 查看服務狀態
-Start-Service postgresql-x64-14  # 啟動
-Stop-Service  postgresql-x64-14  # 停止
+Get-Service postgresql*          # 查看服務狀態（服務名稱會隨安裝版本而異）
+Start-Service postgresql-x64-17  # 啟動
+Stop-Service  postgresql-x64-17  # 停止
 ```
 
 **Windows — cmd.exe**（同樣需以系統管理員身分執行）：
 
 ```bat
-sc query postgresql-x64-14       # 查看服務狀態
-net start postgresql-x64-14      # 啟動
-net stop  postgresql-x64-14      # 停止
+sc query postgresql-x64-17       # 查看服務狀態
+net start postgresql-x64-17      # 啟動
+net stop  postgresql-x64-17      # 停止
 ```
 
 > `Get-Service` 等指令是 PowerShell 專屬 cmdlet，無法在 cmd.exe 執行；
 > `net start / net stop` 則兩者通用。
-> 也可在「服務」管理員（services.msc）中以 GUI 操作 `postgresql-x64-14`。
+> 也可在「服務」管理員（services.msc）中以 GUI 操作 `postgresql-x64-17`。
+> 服務名稱中的版本號（`x64-17`）會隨實際安裝的 PostgreSQL 主版本而不同,
+> 不確定時請先用 `Get-Service postgresql*` 查出正確名稱再代入後續指令.
 
 ### psql 常用指令
 
