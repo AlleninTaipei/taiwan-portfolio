@@ -353,6 +353,13 @@ category        shares
 | HAVING | 過濾 `holding_shares = 0`（已清倉不顯示） |
 | INSERT ON CONFLICT | `upsert_prices()` 中，同一天重複抓到資料時更新而不是報錯 |
 | Transaction (commit) | `db_ops.py` 每個寫入操作結束後呼叫 `conn.commit()` |
+| JOIN | `portfolio_summary`、`list_transactions` 用 JOIN 把 stocks 的名稱與產業接進來 |
+| LEFT JOIN | `portfolio_summary` 接 daily_prices 用 LEFT JOIN, 沒有股價的股票仍會顯示, 跟 INNER JOIN 會濾掉無資料列的行為不同 |
+| GROUP BY | 搭配聚合函數(SUM)與 HAVING, 依 ticker 等欄位分組計算持股數與成本 |
+| RETURNING | `insert_transaction` 用 INSERT ... RETURNING id, 新增資料時直接取回自動產生的主鍵, 不用再查一次 |
+| SERIAL | `transactions.id` 用 SERIAL 自動遞增主鍵 |
+| ALTER TABLE ADD COLUMN IF NOT EXISTS | schema.sql 用此語法做漸進式 schema migration, 讓已存在的資料庫也能補上新欄位 |
+| 參數化查詢(%s 佔位符) | `db_ops.py` 所有 SQL 都用 %s 佔位符而非字串拼接, 防止 SQL injection |
 
 ### 為什麼用 View 而不是直接 SELECT？
 
@@ -363,6 +370,24 @@ category        shares
 
 本專案資料量小（個人持股），Virtual View 完全夠用。
 
+### PostgreSQL 在 AI 應用中的角色(延伸知識)
+
+近年 PostgreSQL 不只用在傳統交易系統, 也廣泛應用在 AI 相關的基礎設施中, 以下是業界幾個常見的應用方式, 純粹作為知識補充, 本專案不會實作這些功能.
+
+#### pgvector: 向量搜尋擴充套件
+
+`pgvector` 是 PostgreSQL 的官方擴充套件, 讓資料表可以儲存向量(embedding)並做相似度查詢. 這讓 PostgreSQL 同時扮演結構化資料庫與向量資料庫兩種角色, 不需要額外導入 Pinecone、Weaviate、Milvus 等專門的向量資料庫.
+
+Supabase、Neon、Timescale 等雲端 PostgreSQL 服務都原生支援 pgvector, 是目前不少新創公司用來建置 RAG(Retrieval-Augmented Generation)應用的方式之一; LangChain、LlamaIndex 等框架的官方文件也把 pgvector 列為 vector store 的其中一種 backend 選項.
+
+#### Text-to-SQL: 自然語言查詢資料庫
+
+讓使用者用自然語言提問, 由 LLM 把問題轉換成 SQL 後直接在 PostgreSQL 執行, 再把查詢結果交給 LLM 整理成口語化的回答. 這是目前許多 BI 工具與企業內部 AI 助理採用的架構, PostgreSQL 在其中扮演事實來源的角色, 避免 LLM 憑空生成數字.
+
+#### AI agent 的記憶與狀態儲存
+
+許多 AI agent 框架(LangChain、LangGraph 等)需要儲存對話歷史、長期記憶與任務狀態. PostgreSQL 因為支援 JSON/JSONB 欄位、交易與成熟的維運工具鏈, 常被選為 agent 的後端資料庫, 取代純粹用記憶體或檔案儲存的方式.
+
 ---
 
 ## .gitignore 建議
@@ -371,4 +396,8 @@ category        shares
 .env
 __pycache__/
 *.pyc
+*.pyo
+.DS_Store
+desktop.ini
+*.log
 ```
