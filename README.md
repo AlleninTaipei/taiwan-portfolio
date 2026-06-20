@@ -121,9 +121,22 @@ pip install -r requirements.txt
 
 #### 5. 啟動 Dashboard
 
+每次啟動前先確認 PostgreSQL 服務正在執行(詳見「PostgreSQL 服務管理」一節):
+
+```powershell
+Get-Service postgresql*          # 查看狀態
+Start-Service postgresql-x64-14  # 沒在跑就啟動
+```
+
+確認服務正常後,於專案根目錄執行:
+
 ```bash
 python -m streamlit run app/dashboard.py
 ```
+
+若要停止,在該終端機按 Ctrl+C 即可.
+
+`.env` 與套件安裝(步驟 3、4)只需設定一次,之後每次啟動只需要上面這兩步.
 
 ---
 
